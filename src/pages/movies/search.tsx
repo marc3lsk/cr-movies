@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 
@@ -26,6 +26,12 @@ type SearchResults = {
 export default function Search() {
   const [, setSearchParams] = useSearchParams();
 
+  const [movieCache, setMovieCache] = useState(
+    {} as { [index: number]: MovieData[] },
+  );
+
+  const [totalResults, setTotalResults] = useState(-1);
+
   const location = useLocation();
 
   const searchParams = useMemo(
@@ -43,55 +49,43 @@ export default function Search() {
     return query ?? "";
   }, [searchParams]);
 
-  console.info({ currentPage });
-
   const [query, setQuery] = useState(searchQuery);
 
   const debounced = useDebouncedCallback(
     // function
     (value) => {
-      setSearchParams({});
+      if (value == searchQuery) return;
+      setMovieCache({});
       setSearchParams({ query: value });
     },
     // delay in ms
     1000,
   );
 
-  const { data, isLoading, isError, fetchNextPage } = useInfiniteQuery({
-    queryKey: ["users", searchQuery],
-    queryFn: ({ pageParam }) => {
-      //setCurrentPage(() => pageParam);
-      return searchMovies({ pageParam, query: searchQuery });
+  const { isLoading, isError } = useInfiniteQuery({
+    queryKey: ["movies", searchQuery, currentPage],
+    queryFn: async ({ pageParam }) => {
+      const movies: SearchResults = await searchMovies({
+        pageParam,
+        query: searchQuery,
+      });
+
+      setMovieCache((prev) => ({ ...prev, [pageParam]: movies.Search }));
+      setTotalResults(() => parseInt(movies.totalResults));
+
+      return movies;
     },
     initialPageParam: currentPage,
     getNextPageParam: (_1, _2, lastPage) => lastPage + 1,
-    getPreviousPageParam: (firstPage) => firstPage.prevCursor,
+    getPreviousPageParam: () => currentPage,
     enabled: !!searchQuery,
     refetchOnWindowFocus: false,
   });
-
-  useEffect(() => {
-    fetchNextPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage]);
-
-  useEffect(() => console.info(data), [data]);
-
-  const totalResults = useMemo(() => {
-    if (!data?.pages || !Array.isArray(data.pages) || data.pages.length == 0)
-      return -1;
-
-    return parseInt((data.pages[0] as SearchResults).totalResults);
-  }, [data]);
 
   const showButtonLoadMore = useMemo(
     () => totalResults > currentPage * 10,
     [totalResults, currentPage],
   );
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
 
   if (isError) {
     return <div>Error fetching data</div>;
@@ -99,7 +93,13 @@ export default function Search() {
 
   return (
     <>
-      <form onSubmit={() => setSearchParams({ query })}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMovieCache({});
+          setSearchParams({ query });
+        }}
+      >
         <input
           type="text"
           onChange={(e) => (
@@ -113,11 +113,14 @@ export default function Search() {
       <h1>{searchQuery}</h1>
 
       <ul>
-        {data?.pages.map((page) =>
-          page.Search?.map((movie: MovieData) => (
-            <li key={movie.imdbID}>{movie.Title}</li>
-          )),
-        )}
+        {new Array(currentPage)
+          .fill(0)
+          .flatMap((_, page) =>
+            movieCache[page + 1]?.map((movie: MovieData) => (
+              <li key={movie.imdbID}>{movie.Title}</li>
+            )),
+          )}
+        {isLoading && <div>Loading...</div>}
         {showButtonLoadMore && (
           <Link
             to={{ search: `?query=${query}&page=${currentPage + 1}` }}
