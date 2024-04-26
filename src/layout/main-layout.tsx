@@ -2,12 +2,12 @@ import { Outlet } from "react-router-dom";
 
 export default function MainLayout() {
   return (
-    <div>
-      <header>Main Header</header>
+    <div className="p-8">
+      <header className="py-8">Main Header</header>
       <main>
         <Outlet />
       </main>
-      <footer>Main Footer</footer>
+      <footer className="py-8">Main Footer</footer>
     </div>
   );
 }
