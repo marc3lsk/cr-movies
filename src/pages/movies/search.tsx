@@ -1,8 +1,8 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { TextField } from "@mui/material";
+import { Pagination, PaginationItem, TextField } from "@mui/material";
 
 const searchMovies = async ({ pageParam = 1, query = "" }) => {
   const response = await fetch(
@@ -50,6 +50,15 @@ export default function Search() {
     return query ?? "";
   }, [searchParams]);
 
+  const isMore = useMemo(() => {
+    const more = searchParams.get("more");
+    return typeof more == "string";
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!isMore) setMovieCache({});
+  }, [isMore]);
+
   const [query, setQuery] = useState(searchQuery);
 
   const debounced = useDebouncedCallback(
@@ -93,7 +102,7 @@ export default function Search() {
   }
 
   return (
-    <>
+    <div className="mx-auto p-4 justify-center flex flex-col">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -103,11 +112,12 @@ export default function Search() {
       >
         <TextField
           label="Search for a movie"
-          variant="standard"
+          variant="filled"
           onChange={(e) => {
             setQuery(e.target.value);
             debounced(e.target.value);
           }}
+          className="w-96"
         />
         <button
           type="submit"
@@ -115,26 +125,46 @@ export default function Search() {
           title="to make submit work with enter key"
         />
       </form>
-      <h1>{searchQuery}</h1>
 
-      <ul>
-        {new Array(currentPage)
-          .fill(0)
-          .flatMap((_, page) =>
-            movieCache[page + 1]?.map((movie: MovieData) => (
-              <li key={movie.imdbID}>{movie.Title}</li>
-            )),
+      {totalResults > 0 && (
+        <>
+          <ul className="mt-8 mb-4">
+            {new Array(currentPage)
+              .fill(0)
+              .flatMap((_, page) =>
+                movieCache[page + 1]?.map((movie: MovieData) => (
+                  <li key={movie.imdbID}>{movie.Title}</li>
+                )),
+              )}
+          </ul>
+          {isLoading && <div>Loading...</div>}
+          {showButtonLoadMore && (
+            <Link
+              to={{ search: `?query=${query}&page=${currentPage + 1}&more` }}
+              className="block my-4"
+            >
+              » Load more «
+            </Link>
           )}
-        {isLoading && <div>Loading...</div>}
-        {showButtonLoadMore && (
-          <Link
-            to={{ search: `?query=${query}&page=${currentPage + 1}` }}
-            className="block mt-4"
-          >
-            » Load more «
-          </Link>
-        )}
-      </ul>
-    </>
+          <Pagination
+            page={currentPage}
+            count={Math.ceil(totalResults / 10)}
+            renderItem={(item) => (
+              <PaginationItem
+                component={Link}
+                to={{
+                  search:
+                    `?query=${query}&page=${item.page}` +
+                    (item.type == "next" || (item.type == "previous" && isMore)
+                      ? "&more"
+                      : ""),
+                }}
+                {...item}
+              />
+            )}
+          />
+        </>
+      )}
+    </div>
   );
 }
