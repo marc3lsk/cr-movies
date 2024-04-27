@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { TextField } from "@mui/material";
 
 const searchMovies = async ({ pageParam = 1, query = "" }) => {
   const response = await fetch(
@@ -100,14 +101,18 @@ export default function Search() {
           setSearchParams({ query });
         }}
       >
-        <input
-          type="text"
-          onChange={(e) => (
-            setQuery(e.target.value), debounced(e.target.value)
-          )}
-          value={query}
-          placeholder="Search for a movie"
-          className="border-2 border-gray-500 rounded"
+        <TextField
+          label="Search for a movie"
+          variant="standard"
+          onChange={(e) => {
+            setQuery(e.target.value);
+            debounced(e.target.value);
+          }}
+        />
+        <button
+          type="submit"
+          className="hidden"
+          title="to make submit work with enter key"
         />
       </form>
       <h1>{searchQuery}</h1>
