@@ -19,7 +19,7 @@ type SearchResults = {
   totalResults: string;
 };
 
-export default function Search() {
+export default function SearchMoviesPage() {
   const favouriteMoviesStore = useFavouriteMoviesStore();
 
   const [, setSearchParams] = useSearchParams();
@@ -129,15 +129,17 @@ export default function Search() {
               movieCache[page + 1]?.map((movie: SearchResultsMovieListItem) => (
                 <li
                   key={movie.imdbID}
-                  onClick={() =>
-                    favouriteMoviesStore.addFavouriteMovie(movie.imdbID)
-                  }
                   className={clsx(
                     favouriteMoviesStore.favouriteMovies.indexOf(movie.imdbID) >
                       -1 && "font-bold",
                   )}
                 >
-                  {movie.Title}
+                  <Link
+                    to={{ pathname: `movie/${movie.imdbID}` }}
+                    className="block my-4"
+                  >
+                    {movie.Title}
+                  </Link>
                 </li>
               )),
             )}
