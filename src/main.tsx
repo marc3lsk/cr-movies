@@ -15,7 +15,7 @@ import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
-const SearchMovies = lazy(() => import("./pages/movies/search.tsx"));
+const SearchMovies = lazy(() => import("./features/movies/pages/search.tsx"));
 
 const router = createBrowserRouter([
   {

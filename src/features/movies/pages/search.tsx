@@ -3,6 +3,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Pagination, PaginationItem, TextField } from "@mui/material";
+import { clsx } from "clsx/lite";
+import useFavouriteMoviesStore from "../stores/favourite-movies-store";
+import { SearchResultsMovieListItem } from "../models/search-results-movie-list-item";
 
 const searchMovies = async ({ query = "", page = 1 }) => {
   const response = await fetch(
@@ -11,20 +14,14 @@ const searchMovies = async ({ query = "", page = 1 }) => {
   return response.json();
 };
 
-type MovieData = {
-  Title: string;
-  Year: string;
-  imdbID: string;
-  Type: string;
-  Poster: string;
-};
-
 type SearchResults = {
-  Search: MovieData[];
+  Search: SearchResultsMovieListItem[];
   totalResults: string;
 };
 
 export default function Search() {
+  const favouriteMoviesStore = useFavouriteMoviesStore();
+
   const [, setSearchParams] = useSearchParams();
   const location = useLocation();
 
@@ -53,7 +50,7 @@ export default function Search() {
   }, [isMore, currentPage]);
 
   const [movieCache, setMovieCache] = useState(
-    {} as { [index: number]: MovieData[] },
+    {} as { [index: number]: SearchResultsMovieListItem[] },
   );
 
   const [totalResults, setTotalResults] = useState(-1);
@@ -128,13 +125,22 @@ export default function Search() {
       {showResults && (
         <>
           <ul className="mt-8 mb-4">
-            {new Array(currentPage)
-              .fill(0)
-              .flatMap((_, page) =>
-                movieCache[page + 1]?.map((movie: MovieData) => (
-                  <li key={movie.imdbID}>{movie.Title}</li>
-                )),
-              )}
+            {new Array(currentPage).fill(0).flatMap((_, page) =>
+              movieCache[page + 1]?.map((movie: SearchResultsMovieListItem) => (
+                <li
+                  key={movie.imdbID}
+                  onClick={() =>
+                    favouriteMoviesStore.addFavouriteMovie(movie.imdbID)
+                  }
+                  className={clsx(
+                    favouriteMoviesStore.favouriteMovies.indexOf(movie.imdbID) >
+                      -1 && "font-bold",
+                  )}
+                >
+                  {movie.Title}
+                </li>
+              )),
+            )}
           </ul>
 
           {isLoading && <div>Loading...</div>}
@@ -156,11 +162,7 @@ export default function Search() {
               <PaginationItem
                 component={Link}
                 to={{
-                  search:
-                    `?query=${query}&page=${item.page}` +
-                    (item.type == "next" || (item.type == "previous" && isMore)
-                      ? "&more"
-                      : ""),
+                  search: `?query=${query}&page=${item.page}`,
                 }}
                 {...item}
               />
@@ -168,6 +170,10 @@ export default function Search() {
           />
         </>
       )}
+
+      <h1 className="my-4">
+        Favourite movies: {favouriteMoviesStore.favouriteMovies.join(", ")}
+      </h1>
     </div>
   );
 }
