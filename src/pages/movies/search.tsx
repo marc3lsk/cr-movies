@@ -4,9 +4,9 @@ import { useDebouncedCallback } from "use-debounce";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Pagination, PaginationItem, TextField } from "@mui/material";
 
-const searchMovies = async ({ pageParam = 1, query = "" }) => {
+const searchMovies = async ({ query = "", page = 1 }) => {
   const response = await fetch(
-    `https://omdbapi.com/?apikey=${import.meta.env.VITE_OMDB_API_KEY}&s=${query}&page=${pageParam}`,
+    `https://omdbapi.com/?apikey=${import.meta.env.VITE_OMDB_API_KEY}&s=${query}&page=${page}`,
   );
   return response.json();
 };
@@ -26,13 +26,6 @@ type SearchResults = {
 
 export default function Search() {
   const [, setSearchParams] = useSearchParams();
-
-  const [movieCache, setMovieCache] = useState(
-    {} as { [index: number]: MovieData[] },
-  );
-
-  const [totalResults, setTotalResults] = useState(-1);
-
   const location = useLocation();
 
   const searchParams = useMemo(
@@ -40,14 +33,14 @@ export default function Search() {
     [location.search],
   );
 
-  const currentPage = useMemo(() => {
-    const page = searchParams.get("page");
-    return page ? parseInt(page) : 1;
-  }, [searchParams]);
-
   const searchQuery = useMemo(() => {
     const query = searchParams.get("query");
     return query ?? "";
+  }, [searchParams]);
+
+  const currentPage = useMemo(() => {
+    const page = searchParams.get("page");
+    return page ? parseInt(page) : 1;
   }, [searchParams]);
 
   const isMore = useMemo(() => {
@@ -57,26 +50,28 @@ export default function Search() {
 
   useEffect(() => {
     if (!isMore) setMovieCache({});
-  }, [isMore]);
+  }, [isMore, currentPage]);
+
+  const [movieCache, setMovieCache] = useState(
+    {} as { [index: number]: MovieData[] },
+  );
+
+  const [totalResults, setTotalResults] = useState(-1);
+
+  const showResults = useMemo(() => totalResults > 0, [totalResults]);
+
+  const showButtonLoadMore = useMemo(
+    () => totalResults > currentPage * 10,
+    [totalResults, currentPage],
+  );
 
   const [query, setQuery] = useState(searchQuery);
-
-  const debounced = useDebouncedCallback(
-    // function
-    (value) => {
-      if (value == searchQuery) return;
-      setMovieCache({});
-      setSearchParams({ query: value });
-    },
-    // delay in ms
-    1000,
-  );
 
   const { isLoading, isError } = useInfiniteQuery({
     queryKey: ["movies", searchQuery, currentPage],
     queryFn: async ({ pageParam }) => {
       const movies: SearchResults = await searchMovies({
-        pageParam,
+        page: pageParam,
         query: searchQuery,
       });
 
@@ -92,31 +87,35 @@ export default function Search() {
     refetchOnWindowFocus: false,
   });
 
-  const showButtonLoadMore = useMemo(
-    () => totalResults > currentPage * 10,
-    [totalResults, currentPage],
+  function onSubmitQuery(e: React.FormEvent) {
+    e.preventDefault();
+    setMovieCache({});
+    setSearchParams({ query });
+  }
+
+  const debounced = useDebouncedCallback(
+    // function
+    (value) => {
+      if (value == searchQuery) return;
+      setMovieCache({});
+      setSearchParams({ query: value });
+    },
+    // delay in ms
+    1000,
   );
 
-  if (isError) {
-    return <div>Error fetching data</div>;
+  function onChangeQuery(e: React.ChangeEvent<HTMLInputElement>) {
+    setQuery(e.target.value);
+    debounced(e.target.value);
   }
 
   return (
     <div className="mx-auto p-4 justify-center flex flex-col">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setMovieCache({});
-          setSearchParams({ query });
-        }}
-      >
+      <form onSubmit={onSubmitQuery}>
         <TextField
           label="Search for a movie"
           variant="filled"
-          onChange={(e) => {
-            setQuery(e.target.value);
-            debounced(e.target.value);
-          }}
+          onChange={onChangeQuery}
           className="w-96"
         />
         <button
@@ -126,7 +125,7 @@ export default function Search() {
         />
       </form>
 
-      {totalResults > 0 && (
+      {showResults && (
         <>
           <ul className="mt-8 mb-4">
             {new Array(currentPage)
@@ -137,7 +136,10 @@ export default function Search() {
                 )),
               )}
           </ul>
+
           {isLoading && <div>Loading...</div>}
+          {isError && <div>Error fetching data</div>}
+
           {showButtonLoadMore && (
             <Link
               to={{ search: `?query=${query}&page=${currentPage + 1}&more` }}
@@ -146,6 +148,7 @@ export default function Search() {
               » Load more «
             </Link>
           )}
+
           <Pagination
             page={currentPage}
             count={Math.ceil(totalResults / 10)}
