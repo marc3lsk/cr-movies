@@ -6,6 +6,7 @@ import { Button, List, ListItem, ListItemText } from "@mui/material";
 import StarIcon from "@mui/icons-material/Star";
 import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import useFavouriteMoviesStore from "../stores/favourite-movies-store";
+import { Helmet } from "react-helmet-async";
 
 export default function MovieDetailPage() {
   const favouriteMoviesStore = useFavouriteMoviesStore();
@@ -55,6 +56,9 @@ export default function MovieDetailPage() {
 
   return (
     <>
+      <Helmet>
+        <title>{movie?.Title}</title>
+      </Helmet>
       {movieDetailQuery.isLoading && <div>Loading...</div>}
       {movie && (
         <>

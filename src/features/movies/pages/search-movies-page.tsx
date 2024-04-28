@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Pagination, PaginationItem, TextField } from "@mui/material";
 import StarIcon from "@mui/icons-material/Star";
 import { clsx } from "clsx/lite";
@@ -47,23 +48,17 @@ export default function SearchMoviesPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!isMore || typeof searchQuery != "string") setMovieCache({});
+    if (!isMore || !searchQuery) setMovieCache({});
   }, [isMore, currentPage, searchQuery]);
+
+  useEffect(() => {
+    setMovieCache({});
+    setTotalResults(-1);
+  }, [searchQuery]);
 
   const [movieCache, setMovieCache] = useState(
     {} as { [index: number]: SearchResultsMovieListItem[] },
   );
-
-  const [totalResults, setTotalResults] = useState(-1);
-
-  const showResults = useMemo(() => totalResults > 0, [totalResults]);
-
-  const showButtonLoadMore = useMemo(
-    () => totalResults > currentPage * 10,
-    [totalResults, currentPage],
-  );
-
-  const [query, setQuery] = useState(searchQuery);
 
   const { isLoading, isError } = useInfiniteQuery({
     queryKey: ["movies", searchQuery, currentPage],
@@ -85,10 +80,30 @@ export default function SearchMoviesPage() {
     refetchOnWindowFocus: false,
   });
 
+  const [totalResults, setTotalResults] = useState(-1);
+
+  const showResults = useMemo(
+    () => !!searchQuery && totalResults > 0,
+    [searchQuery, totalResults],
+  );
+
+  const showNoMoviesFound = useMemo(
+    () => !isLoading && !!searchQuery && !(totalResults > 0),
+    [isLoading, searchQuery, totalResults],
+  );
+
+  const showButtonLoadMore = useMemo(
+    () => totalResults > currentPage * 10,
+    [totalResults, currentPage],
+  );
+
+  const [searchQueryInputValue, setSearchQueryInputValue] =
+    useState(searchQuery);
+
   function onSubmitQuery(e: React.FormEvent) {
     e.preventDefault();
     setMovieCache({});
-    setSearchParams({ query });
+    setSearchParams({ query: searchQueryInputValue });
   }
 
   const debounced = useDebouncedCallback(
@@ -96,83 +111,101 @@ export default function SearchMoviesPage() {
     (value) => {
       if (value == searchQuery) return;
       setMovieCache({});
-      setSearchParams({ query: value });
+      if (typeof value == "string" && value.length > 0)
+        setSearchParams({ query: value });
+      else setSearchParams({});
     },
     // delay in ms
     1000,
   );
 
   function onChangeQuery(e: React.ChangeEvent<HTMLInputElement>) {
-    setQuery(e.target.value);
+    setSearchQueryInputValue(e.target.value);
     debounced(e.target.value);
   }
 
   return (
-    <div className="mx-auto flex flex-col justify-center">
-      <form onSubmit={onSubmitQuery}>
-        <TextField
-          label="Search for a movie"
-          variant="filled"
-          onChange={onChangeQuery}
-          className="w-96"
-        />
-        <button
-          type="submit"
-          className="hidden"
-          title="to make submit work with enter key"
-        />
-      </form>
-
-      {showResults && (
-        <>
-          <ul className="mb-4 mt-8 flex flex-wrap gap-16">
-            {new Array(currentPage).fill(0).flatMap((_, page) =>
-              movieCache[page + 1]?.map((movie: SearchResultsMovieListItem) => (
-                <li key={movie.imdbID} className={clsx("max-w-72")}>
-                  <Link
-                    to={{ pathname: `movie/${movie.imdbID}` }}
-                    className="flex flex-col gap-y-4"
-                  >
-                    <img src={movie.Poster} alt={movie.Title} />
-                    <span>
-                      {movie.Title}
-                      {favouriteMoviesStore.isFavourite(movie.imdbID) && (
-                        <StarIcon className="ml-2" />
-                      )}
-                    </span>
-                  </Link>
-                </li>
-              )),
-            )}
-          </ul>
-
-          {isLoading && <div>Loading...</div>}
-          {isError && <div>Error fetching data</div>}
-
-          {showButtonLoadMore && (
-            <Link
-              to={{ search: `?query=${query}&page=${currentPage + 1}&more` }}
-              className="my-4 block"
-            >
-              » Load more «
-            </Link>
-          )}
-
-          <Pagination
-            page={currentPage}
-            count={Math.ceil(totalResults / 10)}
-            renderItem={(item) => (
-              <PaginationItem
-                component={Link}
-                to={{
-                  search: `?query=${query}&page=${item.page}`,
-                }}
-                {...item}
-              />
-            )}
+    <>
+      <Helmet>
+        <title>Search movies</title>
+      </Helmet>
+      <div className="mx-auto flex flex-col justify-center">
+        <form onSubmit={onSubmitQuery}>
+          <TextField
+            label="Search for a movie"
+            variant="filled"
+            onChange={onChangeQuery}
+            className="w-96"
+            value={searchQueryInputValue}
           />
-        </>
-      )}
-    </div>
+          <button
+            type="submit"
+            className="hidden"
+            title="to make submit work with enter key"
+          />
+        </form>
+
+        {showNoMoviesFound && <p className="my-4">Oops, no movies found</p>}
+
+        {!showResults && isLoading && <p className="my-4">Searching...</p>}
+
+        {!showResults && isError && <p className="my-4">Error fetching data</p>}
+
+        {showResults && (
+          <>
+            <ul className="mb-4 mt-8 flex flex-wrap gap-16">
+              {new Array(currentPage).fill(0).flatMap((_, page) =>
+                movieCache[page + 1]?.map(
+                  (movie: SearchResultsMovieListItem) => (
+                    <li key={movie.imdbID} className={clsx("max-w-72")}>
+                      <Link
+                        to={{ pathname: `movie/${movie.imdbID}` }}
+                        className="flex flex-col gap-y-4"
+                      >
+                        <img src={movie.Poster} alt={movie.Title} />
+                        <span>
+                          {movie.Title}
+                          {favouriteMoviesStore.isFavourite(movie.imdbID) && (
+                            <StarIcon className="ml-2" />
+                          )}
+                        </span>
+                      </Link>
+                    </li>
+                  ),
+                ),
+              )}
+            </ul>
+
+            {isLoading && <div>Loading...</div>}
+            {isError && <div>Error fetching data</div>}
+
+            {showButtonLoadMore && (
+              <Link
+                to={{
+                  search: `?query=${searchQueryInputValue}&page=${currentPage + 1}&more`,
+                }}
+                className="my-4 block"
+              >
+                » Load more «
+              </Link>
+            )}
+
+            <Pagination
+              page={currentPage}
+              count={Math.ceil(totalResults / 10)}
+              renderItem={(item) => (
+                <PaginationItem
+                  component={Link}
+                  to={{
+                    search: `?query=${searchQueryInputValue}&page=${item.page}`,
+                  }}
+                  {...item}
+                />
+              )}
+            />
+          </>
+        )}
+      </div>
+    </>
   );
 }
