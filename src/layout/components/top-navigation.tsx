@@ -24,9 +24,9 @@ function MenuItems({
   return (
     <nav
       className={clsx(
-        "gap-y-3 gap-x-8 overflow-hidden transition-[height] duration-300 lg:flex lg:gap-y-0 lg:px-0",
+        "flex flex-col gap-x-8 gap-y-3 overflow-hidden transition-[height] duration-300 lg:flex-row lg:gap-y-0 lg:px-0",
         !isOpen && "h-0",
-        isVertical && isOpen && "h-16",
+        isVertical && isOpen && "h-20",
         !isVertical && "py-5",
       )}
     >
@@ -56,7 +56,7 @@ export default function TopNavigation() {
                 isVertical={!responsiveBreakPoints.isLg}
               />
             ) : (
-              <div className="mr-2 inline-block self-start pt-1 pb-1">
+              <div className="mr-2 inline-block self-start pb-1 pt-1">
                 <Hamburger toggled={isMenuOpen} toggle={setIsMenuOpen} />
               </div>
             )}

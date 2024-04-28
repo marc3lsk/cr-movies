@@ -58,7 +58,7 @@ export default function MovieDetailPage() {
       {movieDetailQuery.isLoading && <div>Loading...</div>}
       {movie && (
         <>
-          <div className="flex flex-wrap mb-8">
+          <div className="mb-8 flex flex-wrap">
             <h1 className="text-5xl">{movie.Title}</h1>
             {favouriteMoviesStore.isFavourite(movie.imdbID) ? (
               <Button

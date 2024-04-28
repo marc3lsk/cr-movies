@@ -108,7 +108,7 @@ export default function SearchMoviesPage() {
   }
 
   return (
-    <div className="mx-auto justify-center flex flex-col">
+    <div className="mx-auto flex flex-col justify-center">
       <form onSubmit={onSubmitQuery}>
         <TextField
           label="Search for a movie"
@@ -125,7 +125,7 @@ export default function SearchMoviesPage() {
 
       {showResults && (
         <>
-          <ul className="mt-8 mb-4 flex flex-wrap gap-16">
+          <ul className="mb-4 mt-8 flex flex-wrap gap-16">
             {new Array(currentPage).fill(0).flatMap((_, page) =>
               movieCache[page + 1]?.map((movie: SearchResultsMovieListItem) => (
                 <li key={movie.imdbID} className={clsx("max-w-72")}>
@@ -152,7 +152,7 @@ export default function SearchMoviesPage() {
           {showButtonLoadMore && (
             <Link
               to={{ search: `?query=${query}&page=${currentPage + 1}&more` }}
-              className="block my-4"
+              className="my-4 block"
             >
               » Load more «
             </Link>
