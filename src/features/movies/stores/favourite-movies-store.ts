@@ -3,21 +3,24 @@ import { persist } from "zustand/middleware";
 
 type FavouriteMoviesStoreState = {
   favouriteMovies: Array<string>;
-  addFavouriteMovie: (id: string) => void;
-  removeFavouriteMovie: (id: string) => void;
+  isFavourite: (movieId: string) => boolean;
+  addFavouriteMovie: (movieId: string) => void;
+  removeFavouriteMovie: (movieId: string) => void;
 };
 
 const useFavouriteMoviesStore = create<FavouriteMoviesStoreState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       favouriteMovies: [] as Array<string>,
-      addFavouriteMovie: (id: string) =>
-        set((state) => ({ favouriteMovies: [...state.favouriteMovies, id] })),
-      removeFavouriteMovie: (id: string) =>
+      isFavourite: (movieId: string) =>
+        get().favouriteMovies.indexOf(movieId) > -1,
+      addFavouriteMovie: (movieId: string) =>
         set((state) => ({
-          favouriteMovies: state.favouriteMovies.filter(
-            (movieId) => movieId !== id,
-          ),
+          favouriteMovies: [...state.favouriteMovies, movieId],
+        })),
+      removeFavouriteMovie: (movieId: string) =>
+        set((state) => ({
+          favouriteMovies: state.favouriteMovies.filter((id) => movieId !== id),
         })),
     }),
     { name: "favourite-movies" },

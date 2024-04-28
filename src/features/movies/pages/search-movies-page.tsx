@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Pagination, PaginationItem, TextField } from "@mui/material";
+import StarIcon from "@mui/icons-material/Star";
 import { clsx } from "clsx/lite";
 import useFavouriteMoviesStore from "../stores/favourite-movies-store";
 import { SearchResultsMovieListItem } from "../models/search-results-movie-list-item";
@@ -46,8 +47,8 @@ export default function SearchMoviesPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!isMore) setMovieCache({});
-  }, [isMore, currentPage]);
+    if (!isMore || typeof searchQuery != "string") setMovieCache({});
+  }, [isMore, currentPage, searchQuery]);
 
   const [movieCache, setMovieCache] = useState(
     {} as { [index: number]: SearchResultsMovieListItem[] },
@@ -107,7 +108,7 @@ export default function SearchMoviesPage() {
   }
 
   return (
-    <div className="mx-auto p-4 justify-center flex flex-col">
+    <div className="mx-auto justify-center flex flex-col">
       <form onSubmit={onSubmitQuery}>
         <TextField
           label="Search for a movie"
@@ -133,14 +134,11 @@ export default function SearchMoviesPage() {
                     className="flex flex-col gap-y-4"
                   >
                     <img src={movie.Poster} alt={movie.Title} />
-                    <span
-                      className={clsx(
-                        favouriteMoviesStore.favouriteMovies.indexOf(
-                          movie.imdbID,
-                        ) > -1 && "font-bold",
-                      )}
-                    >
+                    <span>
                       {movie.Title}
+                      {favouriteMoviesStore.isFavourite(movie.imdbID) && (
+                        <StarIcon className="ml-2" />
+                      )}
                     </span>
                   </Link>
                 </li>
@@ -175,10 +173,6 @@ export default function SearchMoviesPage() {
           />
         </>
       )}
-
-      <h1 className="my-4">
-        Favourite movies: {favouriteMoviesStore.favouriteMovies.join(", ")}
-      </h1>
     </div>
   );
 }

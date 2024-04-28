@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { createBrowserRouter } from "react-router-dom";
-import Loading from "./layout/loading.tsx";
+import Loading from "./layout/components/loading.tsx";
 import MainLayout from "./layout/main-layout.tsx";
 
 const SearchMoviesPage = lazy(

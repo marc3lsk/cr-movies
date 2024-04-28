@@ -2,8 +2,13 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MovieDetail } from "../models/movie-detail";
 import { useMemo } from "react";
+import { Button } from "@mui/material";
+import StarIcon from "@mui/icons-material/Star";
+import StarOutlineIcon from "@mui/icons-material/StarOutline";
+import useFavouriteMoviesStore from "../stores/favourite-movies-store";
 
 export default function MovieDetailPage() {
+  const favouriteMoviesStore = useFavouriteMoviesStore();
   const { movieId } = useParams();
 
   const getMovieDetail = async (movieId: string) => {
@@ -20,13 +25,38 @@ export default function MovieDetailPage() {
 
   const movie = useMemo(() => movieDetailQuery.data, [movieDetailQuery.data]);
 
+  function onClickAddToFavourites(movieId: string) {
+    favouriteMoviesStore.addFavouriteMovie(movieId);
+  }
+
+  function onClickRemoveFromFavourites(movieId: string) {
+    favouriteMoviesStore.removeFavouriteMovie(movieId);
+  }
+
   return (
     <>
       {movieDetailQuery.isLoading && <div>Loading...</div>}
       {movie && (
         <>
+          <div className="flex flex-wrap">
+            <h1 className="text-5xl">{movie.Title}</h1>
+            {favouriteMoviesStore.isFavourite(movie.imdbID) ? (
+              <Button
+                onClick={() => onClickRemoveFromFavourites(movie.imdbID)}
+                title="Remove from favourites"
+              >
+                <StarIcon />
+              </Button>
+            ) : (
+              <Button
+                onClick={() => onClickAddToFavourites(movie.imdbID)}
+                title="Add to favourites"
+              >
+                <StarOutlineIcon />
+              </Button>
+            )}
+          </div>
           <img src={movie.Poster} />
-          <h1>{movie.Title}</h1>
         </>
       )}
     </>
