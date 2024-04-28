@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
@@ -9,20 +9,36 @@ import { clsx } from "clsx/lite";
 import useFavouriteMoviesStore from "../stores/favourite-movies-store";
 import { SearchResultsMovieListItem } from "../models/search-results-movie-list-item";
 
+const PAGING_SIZE = 10;
+
 const searchMovies = async ({ query = "", page = 1 }) => {
   const response = await fetch(
     `https://omdbapi.com/?apikey=${import.meta.env.VITE_OMDB_API_KEY}&s=${query}&page=${page}`,
   );
-  return response.json();
+  return response.json() as unknown as SearchMoviesResponse;
 };
 
 type SearchResults = {
+  Response: "True";
   Search: SearchResultsMovieListItem[];
   totalResults: string;
 };
 
+type ErrorResponse = { Response: "False"; Error: string };
+
+type SearchMoviesResponse = SearchResults | ErrorResponse;
+
 export default function SearchMoviesPage() {
   const favouriteMoviesStore = useFavouriteMoviesStore();
+
+  const [movieCache, setMovieCache] = useState(
+    {} as { [page: string]: SearchResultsMovieListItem[] },
+  );
+
+  function clearMovieCache() {
+    setMovieCache({});
+    setTotalResults(-1);
+  }
 
   const [, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -48,34 +64,33 @@ export default function SearchMoviesPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!isMore || !searchQuery) setMovieCache({});
-  }, [isMore, currentPage, searchQuery]);
-
-  useEffect(() => {
-    setMovieCache({});
-    setTotalResults(-1);
+    if (!searchQuery) clearMovieCache();
   }, [searchQuery]);
 
-  const [movieCache, setMovieCache] = useState(
-    {} as { [index: number]: SearchResultsMovieListItem[] },
-  );
+  useEffect(() => {
+    if (!isMore) setMovieCache({});
+  }, [isMore, currentPage]);
 
-  const { isLoading, isError } = useInfiniteQuery({
-    queryKey: ["movies", searchQuery, currentPage],
-    queryFn: async ({ pageParam }) => {
-      const movies: SearchResults = await searchMovies({
-        page: pageParam,
+  useEffect(clearMovieCache, [searchQuery]);
+
+  const searchMoviesQuery = useQuery<SearchMoviesResponse>({
+    queryKey: ["search-movies", searchQuery, currentPage],
+    queryFn: async () => {
+      const response = await searchMovies({
+        page: currentPage,
         query: searchQuery,
       });
 
-      setMovieCache((prev) => ({ ...prev, [pageParam]: movies.Search }));
-      setTotalResults(() => parseInt(movies.totalResults));
+      if (response.Response == "False") {
+        clearMovieCache();
+        return response;
+      }
 
-      return movies;
+      setMovieCache((prev) => ({ ...prev, [currentPage]: response.Search }));
+      setTotalResults(() => parseInt(response.totalResults));
+
+      return response;
     },
-    initialPageParam: currentPage,
-    getNextPageParam: (_1, _2, lastPage) => lastPage + 1,
-    getPreviousPageParam: () => currentPage,
     enabled: !!searchQuery,
     refetchOnWindowFocus: false,
   });
@@ -87,22 +102,35 @@ export default function SearchMoviesPage() {
     [searchQuery, totalResults],
   );
 
-  const showNoMoviesFound = useMemo(
-    () => !isLoading && !!searchQuery && !(totalResults > 0),
-    [isLoading, searchQuery, totalResults],
+  const responseErrorMessage = useMemo(
+    () =>
+      searchMoviesQuery.data?.Response == "False"
+        ? searchMoviesQuery.data?.Error
+        : undefined,
+    [searchMoviesQuery.data],
   );
 
   const showButtonLoadMore = useMemo(
-    () => totalResults > currentPage * 10,
-    [totalResults, currentPage],
+    () =>
+      !searchMoviesQuery.isFetching && totalResults > currentPage * PAGING_SIZE,
+    [totalResults, currentPage, searchMoviesQuery.isFetching],
   );
 
   const [searchQueryInputValue, setSearchQueryInputValue] =
     useState(searchQuery);
 
-  function onSubmitQuery(e: React.FormEvent) {
+  useEffect(
+    () =>
+      console.info(
+        { showResults, isFetching: searchMoviesQuery.isFetching, currentPage },
+        !showResults && searchMoviesQuery.isFetching && !currentPage,
+      ),
+    [showResults, searchMoviesQuery.isFetching, currentPage],
+  );
+
+  function onSubmitSearchQuery(e: React.FormEvent) {
     e.preventDefault();
-    setMovieCache({});
+    clearMovieCache();
     setSearchParams({ query: searchQueryInputValue });
   }
 
@@ -110,16 +138,21 @@ export default function SearchMoviesPage() {
     // function
     (value) => {
       if (value == searchQuery) return;
-      setMovieCache({});
-      if (typeof value == "string" && value.length > 0)
+
+      clearMovieCache();
+
+      if (typeof value == "string" && value.length > 0) {
         setSearchParams({ query: value });
-      else setSearchParams({});
+        return;
+      }
+
+      setSearchParams({});
     },
     // delay in ms
     1000,
   );
 
-  function onChangeQuery(e: React.ChangeEvent<HTMLInputElement>) {
+  function onChangeSearchQueryInput(e: React.ChangeEvent<HTMLInputElement>) {
     setSearchQueryInputValue(e.target.value);
     debounced(e.target.value);
   }
@@ -130,11 +163,11 @@ export default function SearchMoviesPage() {
         <title>Search movies</title>
       </Helmet>
       <div className="mx-auto flex flex-col justify-center">
-        <form onSubmit={onSubmitQuery}>
+        <form onSubmit={onSubmitSearchQuery}>
           <TextField
             label="Search for a movie"
             variant="filled"
-            onChange={onChangeQuery}
+            onChange={onChangeSearchQueryInput}
             className="w-96"
             value={searchQueryInputValue}
           />
@@ -145,39 +178,43 @@ export default function SearchMoviesPage() {
           />
         </form>
 
-        {showNoMoviesFound && <p className="my-4">Oops, no movies found</p>}
+        {searchMoviesQuery.isError && (
+          <p className="my-4">Error fetching data</p>
+        )}
 
-        {!showResults && isLoading && <p className="my-4">Searching...</p>}
+        {responseErrorMessage && <p className="my-4">{responseErrorMessage}</p>}
 
-        {!showResults && isError && <p className="my-4">Error fetching data</p>}
+        {!showResults && searchMoviesQuery.isFetching && (
+          <p className="my-4">Searching...</p>
+        )}
 
         {showResults && (
           <>
             <ul className="mb-4 mt-8 flex flex-wrap gap-16">
-              {new Array(currentPage).fill(0).flatMap((_, page) =>
-                movieCache[page + 1]?.map(
-                  (movie: SearchResultsMovieListItem) => (
-                    <li key={movie.imdbID} className={clsx("max-w-72")}>
-                      <Link
-                        to={{ pathname: `movie/${movie.imdbID}` }}
-                        className="flex flex-col gap-y-4"
-                      >
-                        <img src={movie.Poster} alt={movie.Title} />
-                        <span>
-                          {movie.Title}
-                          {favouriteMoviesStore.isFavourite(movie.imdbID) && (
-                            <StarIcon className="ml-2" />
-                          )}
-                        </span>
-                      </Link>
-                    </li>
-                  ),
-                ),
+              {Object.keys(movieCache).flatMap((page) =>
+                movieCache[page]?.map((movie: SearchResultsMovieListItem) => (
+                  <li key={movie.imdbID} className={clsx("max-w-72")}>
+                    <Link
+                      to={{ pathname: `movie/${movie.imdbID}` }}
+                      className="flex flex-col gap-y-4"
+                    >
+                      <img src={movie.Poster} alt={movie.Title} />
+                      <span>
+                        {movie.Title}
+                        {favouriteMoviesStore.isFavourite(movie.imdbID) && (
+                          <StarIcon className="ml-2" />
+                        )}
+                      </span>
+                    </Link>
+                  </li>
+                )),
               )}
             </ul>
 
-            {isLoading && <div>Loading...</div>}
-            {isError && <div>Error fetching data</div>}
+            {searchMoviesQuery.isFetching && <p className="my-4">Loading...</p>}
+            {searchMoviesQuery.isError && (
+              <p className="my-4">Error fetching data</p>
+            )}
 
             {showButtonLoadMore && (
               <Link
@@ -192,7 +229,7 @@ export default function SearchMoviesPage() {
 
             <Pagination
               page={currentPage}
-              count={Math.ceil(totalResults / 10)}
+              count={Math.ceil(totalResults / PAGING_SIZE)}
               renderItem={(item) => (
                 <PaginationItem
                   component={Link}
