@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MovieDetail } from "../models/movie-detail";
+import { useMemo } from "react";
 
 export default function MovieDetailPage() {
   const { movieId } = useParams();
@@ -17,5 +18,17 @@ export default function MovieDetailPage() {
     queryFn: async () => await getMovieDetail(movieId!),
   });
 
-  return <h1>{movieDetailQuery.data?.Title}</h1>;
+  const movie = useMemo(() => movieDetailQuery.data, [movieDetailQuery.data]);
+
+  return (
+    <>
+      {movieDetailQuery.isLoading && <div>Loading...</div>}
+      {movie && (
+        <>
+          <img src={movie.Poster} />
+          <h1>{movie.Title}</h1>
+        </>
+      )}
+    </>
+  );
 }

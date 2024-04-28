@@ -124,21 +124,24 @@ export default function SearchMoviesPage() {
 
       {showResults && (
         <>
-          <ul className="mt-8 mb-4">
+          <ul className="mt-8 mb-4 flex flex-wrap gap-16">
             {new Array(currentPage).fill(0).flatMap((_, page) =>
               movieCache[page + 1]?.map((movie: SearchResultsMovieListItem) => (
-                <li
-                  key={movie.imdbID}
-                  className={clsx(
-                    favouriteMoviesStore.favouriteMovies.indexOf(movie.imdbID) >
-                      -1 && "font-bold",
-                  )}
-                >
+                <li key={movie.imdbID} className={clsx("max-w-72")}>
                   <Link
                     to={{ pathname: `movie/${movie.imdbID}` }}
-                    className="block my-4"
+                    className="flex flex-col gap-y-4"
                   >
-                    {movie.Title}
+                    <img src={movie.Poster} alt={movie.Title} />
+                    <span
+                      className={clsx(
+                        favouriteMoviesStore.favouriteMovies.indexOf(
+                          movie.imdbID,
+                        ) > -1 && "font-bold",
+                      )}
+                    >
+                      {movie.Title}
+                    </span>
                   </Link>
                 </li>
               )),
