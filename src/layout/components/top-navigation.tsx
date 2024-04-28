@@ -31,7 +31,7 @@ function MenuItems({
       )}
     >
       <HeaderLink url="/" text="Search movies" />
-      <HeaderLink url="/favourites" text="Favourite movies" />
+      <HeaderLink url="/favourites" text="My favourite movies" />
     </nav>
   );
 }

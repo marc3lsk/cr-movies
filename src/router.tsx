@@ -11,6 +11,10 @@ const MovieDetailPage = lazy(
   () => import("./features/movies/pages/movie-detail-page.tsx"),
 );
 
+const FavouriteMoviesPage = lazy(
+  () => import("./features/movies/pages/favourite-movies-page.tsx"),
+);
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -28,6 +32,10 @@ export const router = createBrowserRouter([
       {
         path: "movie/:movieId",
         element: <MovieDetailPage />,
+      },
+      {
+        path: "favourites",
+        element: <FavouriteMoviesPage />,
       },
     ],
   },
