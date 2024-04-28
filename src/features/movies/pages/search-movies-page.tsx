@@ -119,15 +119,6 @@ export default function SearchMoviesPage() {
   const [searchQueryInputValue, setSearchQueryInputValue] =
     useState(searchQuery);
 
-  useEffect(
-    () =>
-      console.info(
-        { showResults, isFetching: searchMoviesQuery.isFetching, currentPage },
-        !showResults && searchMoviesQuery.isFetching && !currentPage,
-      ),
-    [showResults, searchMoviesQuery.isFetching, currentPage],
-  );
-
   function onSubmitSearchQuery(e: React.FormEvent) {
     e.preventDefault();
     clearMovieCache();
