@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MovieDetail } from "../models/movie-detail";
 import { useMemo } from "react";
-import { Button } from "@mui/material";
+import { Button, List, ListItem, ListItemText } from "@mui/material";
 import StarIcon from "@mui/icons-material/Star";
 import StarOutlineIcon from "@mui/icons-material/StarOutline";
 import useFavouriteMoviesStore from "../stores/favourite-movies-store";
@@ -33,12 +33,32 @@ export default function MovieDetailPage() {
     favouriteMoviesStore.removeFavouriteMovie(movieId);
   }
 
+  function MovieKeyValueList({ data }: { data: { [name: string]: unknown } }) {
+    const excludesProperties = ["Title", "Poster", "Response", "imdbID"];
+
+    const filteredKeys = Object.keys(data).filter(
+      (key) => !excludesProperties.includes(key),
+    );
+
+    return (
+      <List>
+        {filteredKeys
+          .filter((key) => typeof data[key] != "object")
+          .map((key) => (
+            <ListItem key={key}>
+              <ListItemText primary={key} secondary={`${data[key]}`} />
+            </ListItem>
+          ))}
+      </List>
+    );
+  }
+
   return (
     <>
       {movieDetailQuery.isLoading && <div>Loading...</div>}
       {movie && (
         <>
-          <div className="flex flex-wrap">
+          <div className="flex flex-wrap mb-8">
             <h1 className="text-5xl">{movie.Title}</h1>
             {favouriteMoviesStore.isFavourite(movie.imdbID) ? (
               <Button
@@ -57,6 +77,7 @@ export default function MovieDetailPage() {
             )}
           </div>
           <img src={movie.Poster} />
+          <MovieKeyValueList data={movie} />
         </>
       )}
     </>

@@ -12,8 +12,7 @@ const useFavouriteMoviesStore = create<FavouriteMoviesStoreState>()(
   persist(
     (set, get) => ({
       favouriteMovies: [] as Array<string>,
-      isFavourite: (movieId: string) =>
-        get().favouriteMovies.indexOf(movieId) > -1,
+      isFavourite: (movieId: string) => get().favouriteMovies.includes(movieId),
       addFavouriteMovie: (movieId: string) =>
         set((state) => ({
           favouriteMovies: [...state.favouriteMovies, movieId],
